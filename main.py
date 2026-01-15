@@ -187,59 +187,64 @@ with tab_gelir:
         if st.form_submit_button("Geliri Kaydet"):
             toplam = (m or 0) + (p or 0) + (y or 0)
             ws_gelir.append_row([datetime.now().strftime('%Y-%m-%d'), m, p, y, toplam])
-            st.success("Gelir eklendi!"); st.rerun()
+            st.success("Gelir eklendi!")
+            st.rerun()
 
     data_g = ws_gelir.get_all_records()
     if data_g:
         df_g = pd.DataFrame(data_g)
         df_g.columns = [c.lower() for c in df_g.columns]
+        
         if 'tarih' in df_g.columns:
+            # Tarih formatını garantiye al ve temizle
             df_g['tarih'] = pd.to_datetime(df_g['tarih'], errors='coerce')
             df_g = df_g.dropna(subset=['tarih']).sort_values('tarih')
-            
+
+            # --- SÜTUNLARI BURADA TANIMLIYORUZ (Hata Çözümü) ---
             col1, col2 = st.columns(2)
+
             with col1:
                 gelir_cols = [c for c in df_g.columns if c not in ['tarih', 'toplam']]
                 gelir_toplam = df_g[gelir_cols].sum()
-                fig_g_pie = px.pie(values=gelir_toplam.values, names=gelir_toplam.index, title="Gelir Kaynakları")
+                fig_g_pie = px.pie(values=gelir_toplam.values, names=gelir_toplam.index, 
+                                 title="Gelir Kaynakları", hole=0.4,
+                                 color_discrete_sequence=px.colors.qualitative.Pastel)
                 st.plotly_chart(fig_g_pie, use_container_width=True)
             
             with col2:
-                # Dikey çizgiyi engellemek için: Aynı güne ait verileri tek satıra indir
-                df_g_clean = df_g.groupby('tarih')['toplam'].sum().reset_index()
+                # Dikey çizgiyi engellemek için aynı tarihleri topla
+                df_g_plot = df_g.groupby('tarih')['toplam'].sum().reset_index()
 
-                # Grafiği oluştur (image_6af9d8 stilinde temiz çizgi)
-                fig_g = px.line(df_g_clean, x='tarih', y='toplam', markers=True, title="Gelir Akışı Seyri")
+                # İsteğine uygun modern çizgi grafik
+                fig_g_area = px.line(df_g_plot, x='tarih', y='toplam', markers=True, title="Gelir Akışı Seyri")
                 
-                # Çizgi ve Nokta Tasarımı
-                fig_g.update_traces(
-                    line=dict(color='#007bff', width=3), # Modern mavi tonu
-                    marker=dict(size=8, symbol='circle', color='#007bff', line=dict(width=1, color='white'))
+                # Çizgi ve Nokta Ayarları (image_6af9d8 stilinde)
+                fig_g_area.update_traces(
+                    line=dict(color='#007bff', width=3),
+                    marker=dict(size=10, symbol='circle', color='#007bff', line=dict(width=2, color='white'))
                 )
                 
-                # Görseldeki gibi temiz görünüm için Layout ayarları
-                fig_g.update_layout(
+                fig_g_area.update_layout(
                     dragmode='pan',
                     hovermode='x unified',
-                    plot_bgcolor='rgba(0,0,0,0)', # Arka planı temizle
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    yaxis=dict(gridcolor='#f0f0f0', title=""), # Hafif ızgara çizgileri
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    yaxis=dict(gridcolor='#f0f0f0', title=""),
                     xaxis=dict(showgrid=False, title="")
                 )
-                
-                # X Ekseni Türkçe Tarih (Gün Ay)
-                fig_g.update_xaxes(
-                    tickvals=df_g_clean['tarih'], 
-                    ticktext=[f"{d.day} {TR_AYLAR_KISA.get(d.strftime('%b'))}" for d in df_g_clean['tarih']]
+
+                # Türkçe Tarih Formatı
+                fig_g_area.update_xaxes(
+                    tickvals=df_g_plot['tarih'], 
+                    ticktext=[f"{d.day} {TR_AYLAR_KISA.get(d.strftime('%b'))}" for d in df_g_plot['tarih']]
                 )
                 
-                # Gereksiz tüm butonları kaldır (image_6ae390'daki kırmızı alan temizliği)
-                st.plotly_chart(fig_g, use_container_width=True, config={
+                # Gereksiz butonları temizle (image_6ae390 çözümü)
+                st.plotly_chart(fig_g_area, use_container_width=True, config={
                     'scrollZoom': True,
                     'displaylogo': False,
                     'modeBarButtonsToRemove': [
                         'zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 
-                        'zoomOut2d', 'autoScale2d', 'resetScale2d', 'toggleSpikelines'
+                        'zoomOut2d', 'autoScale2d', 'resetScale2d'
                     ]
                 })
 # --- SEKME 3: GİDERLER (BİRLEŞTİRİLMİŞ) ---
