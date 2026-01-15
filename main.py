@@ -131,7 +131,6 @@ with tab_portfoy:
             if baz_deger > 0:
                 fark = guncel_deger - baz_deger
                 yuzde_deg = (fark / baz_deger) * 100
-                # Eksi işaretinin en başa gelmesi için % sona alındı
                 st.metric(label_text, f"{int(fark):,.0f} TL".replace(",", "."), delta=f"{yuzde_deg:.2f}%")
             
             if secilen_periyot != "1 Gün":
@@ -149,32 +148,43 @@ with tab_portfoy:
                 varlik_data.append({'Cins': e, 'Tutar': guncel_val, 'Delta': f"{yuzde:.2f}%", 'Icon': enstruman_bilgi[e]})
         
         df_v = pd.DataFrame(varlik_data).sort_values(by="Tutar", ascending=False)
-        cols = st.columns(4)
+        cols_m = st.columns(4)
         for i, (idx, row) in enumerate(df_v.iterrows()):
-            cols[i % 4].metric(f"{row['Icon']} {row['Cins']}", f"{int(row['Tutar']):,.0f}".replace(",", "."), delta=row['Delta'])
+            cols_m[i % 4].metric(f"{row['Icon']} {row['Cins']}", f"{int(row['Tutar']):,.0f}".replace(",", "."), delta=row['Delta'])
 
         st.divider()
         sub_tab1, sub_tab2 = st.tabs(["🥧 Varlık Dağılımı", "📈 Gelişim Analizi"])
+        
         with sub_tab1:
             df_v['Etiket'] = df_v['Icon'] + " " + df_v['Cins']
             fig_p = px.pie(df_v, values='Tutar', names='Etiket', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
             st.plotly_chart(fig_p, use_container_width=True)
-        with col2:
-                fig_g_area = px.area(df_g, x='tarih', y='toplam', markers=True, title="Gelir Akışı Seyri")
-                fig_g_area.update_traces(line_shape='spline', line_color='#2ecc71', fillcolor='rgba(46, 204, 113, 0.2)')
-                fig_g_area.update_xaxes(tickvals=df_g['tarih'], ticktext=[f"{d.day} {TR_AYLAR_KISA.get(d.strftime('%b'))}" for d in df_g['tarih']])
-                
-                # --- YENİ DÜZENLEME ---
-                fig_g_area.update_layout(dragmode='pan')
-                
-                st.plotly_chart(fig_g_area, use_container_width=True, config={
-                    'scrollZoom': True,
-                    'displaylogo': False,
-                    'modeBarButtonsToRemove': [
-                        'zoom2d', 'pan2d', 'zoomIn2d', 'zoomOut2d', 
-                        'resetScale2d', 'autoScale2d'
-                    ]
-                })
+            
+        with sub_tab2:
+            # Dikey çizgiyi engellemek için aynı tarihlerdeki verileri topla
+            df_p_plot = df_p.groupby('tarih')['Toplam'].sum().reset_index()
+            
+            fig_p_line = px.line(df_p_plot, x='tarih', y='Toplam', markers=True, title="Toplam Varlık Seyri")
+            fig_p_line.update_traces(
+                line=dict(color='#007bff', width=3),
+                marker=dict(size=8, symbol='circle', color='#007bff', line=dict(width=1, color='white'))
+            )
+            fig_p_line.update_layout(
+                dragmode='pan',
+                hovermode='x unified',
+                plot_bgcolor='rgba(0,0,0,0)',
+                yaxis=dict(gridcolor='#f0f0f0', title=""),
+                xaxis=dict(showgrid=False, title="")
+            )
+            fig_p_line.update_xaxes(
+                tickvals=df_p_plot['tarih'], 
+                ticktext=[f"{d.day} {TR_AYLAR_KISA.get(d.strftime('%b'))}" for d in df_p_plot['tarih']]
+            )
+            st.plotly_chart(fig_p_line, use_container_width=True, config={
+                'scrollZoom': True,
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d']
+            })
 
 # --- SEKME 2: GELİRLER ---
 with tab_gelir:
