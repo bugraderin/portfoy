@@ -159,11 +159,22 @@ with tab_portfoy:
             df_v['Etiket'] = df_v['Icon'] + " " + df_v['Cins']
             fig_p = px.pie(df_v, values='Tutar', names='Etiket', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
             st.plotly_chart(fig_p, use_container_width=True)
-        with sub_tab2:
-            df_p['tarih_tr'] = df_p['tarih'].dt.day.astype(str) + " " + df_p['tarih'].dt.month.map(TR_AYLAR_TAM)
-            fig_l = px.line(df_p, x='tarih', y='Toplam', markers=True, title="Toplam Varlık Seyri")
-            fig_l.update_xaxes(tickvals=df_p['tarih'], ticktext=[f"{d.day} {TR_AYLAR_KISA.get(d.strftime('%b'))}" for d in df_p['tarih']])
-            st.plotly_chart(fig_l, use_container_width=True)
+        with col2:
+                fig_g_area = px.area(df_g, x='tarih', y='toplam', markers=True, title="Gelir Akışı Seyri")
+                fig_g_area.update_traces(line_shape='spline', line_color='#2ecc71', fillcolor='rgba(46, 204, 113, 0.2)')
+                fig_g_area.update_xaxes(tickvals=df_g['tarih'], ticktext=[f"{d.day} {TR_AYLAR_KISA.get(d.strftime('%b'))}" for d in df_g['tarih']])
+                
+                # --- YENİ DÜZENLEME ---
+                fig_g_area.update_layout(dragmode='pan')
+                
+                st.plotly_chart(fig_g_area, use_container_width=True, config={
+                    'scrollZoom': True,
+                    'displaylogo': False,
+                    'modeBarButtonsToRemove': [
+                        'zoom2d', 'pan2d', 'zoomIn2d', 'zoomOut2d', 
+                        'resetScale2d', 'autoScale2d'
+                    ]
+                })
 
 # --- SEKME 2: GELİRLER ---
 with tab_gelir:
@@ -194,12 +205,43 @@ with tab_gelir:
                 st.plotly_chart(fig_g_pie, use_container_width=True)
             
             with col2:
-                # --- GELİR AKIŞI İÇİN DE AREA CHART ---
-                fig_g_area = px.area(df_g, x='tarih', y='toplam', markers=True, title="Gelir Akışı Seyri")
-                fig_g_area.update_traces(line_shape='spline', line_color='#2ecc71', fillcolor='rgba(46, 204, 113, 0.2)')
-                fig_g_area.update_xaxes(tickvals=df_g['tarih'], ticktext=[f"{d.day} {TR_AYLAR_KISA.get(d.strftime('%b'))}" for d in df_g['tarih']])
-                st.plotly_chart(fig_g_area, use_container_width=True)
+                # Dikey çizgiyi engellemek için: Aynı güne ait verileri tek satıra indir
+                df_g_clean = df_g.groupby('tarih')['toplam'].sum().reset_index()
 
+                # Grafiği oluştur (image_6af9d8 stilinde temiz çizgi)
+                fig_g = px.line(df_g_clean, x='tarih', y='toplam', markers=True, title="Gelir Akışı Seyri")
+                
+                # Çizgi ve Nokta Tasarımı
+                fig_g.update_traces(
+                    line=dict(color='#007bff', width=3), # Modern mavi tonu
+                    marker=dict(size=8, symbol='circle', color='#007bff', line=dict(width=1, color='white'))
+                )
+                
+                # Görseldeki gibi temiz görünüm için Layout ayarları
+                fig_g.update_layout(
+                    dragmode='pan',
+                    hovermode='x unified',
+                    plot_bgcolor='rgba(0,0,0,0)', # Arka planı temizle
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    yaxis=dict(gridcolor='#f0f0f0', title=""), # Hafif ızgara çizgileri
+                    xaxis=dict(showgrid=False, title="")
+                )
+                
+                # X Ekseni Türkçe Tarih (Gün Ay)
+                fig_g.update_xaxes(
+                    tickvals=df_g_clean['tarih'], 
+                    ticktext=[f"{d.day} {TR_AYLAR_KISA.get(d.strftime('%b'))}" for d in df_g_clean['tarih']]
+                )
+                
+                # Gereksiz tüm butonları kaldır (image_6ae390'daki kırmızı alan temizliği)
+                st.plotly_chart(fig_g, use_container_width=True, config={
+                    'scrollZoom': True,
+                    'displaylogo': False,
+                    'modeBarButtonsToRemove': [
+                        'zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 
+                        'zoomOut2d', 'autoScale2d', 'resetScale2d', 'toggleSpikelines'
+                    ]
+                })
 # --- SEKME 3: GİDERLER (BİRLEŞTİRİLMİŞ) ---
 with tab_gider:
     # 1. Mevcut Bakiye Bilgisini Göster
